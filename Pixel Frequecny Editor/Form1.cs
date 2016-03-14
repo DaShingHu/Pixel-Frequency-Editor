@@ -5,6 +5,7 @@ using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -26,19 +27,18 @@ namespace Pixel_Frequecny_Editor
 
         private void btnInput_Click(object sender, EventArgs e)
         {
-
-            String chosenFile;
             Bitmap input;
 
             openFile.ShowDialog();
             openFile.Filter = "JPEG|*.jpg";
-            chosenFile = openFile.FileName;
-            input = (Bitmap) Image.FromFile(chosenFile);
-            images.Add(input);
-            lstInputImages.Items.Add(new ListViewItem(chosenFile));
+            foreach (String file in openFile.FileNames)
+            {
+                input = (Bitmap)Image.FromFile(file);
+                images.Add(input);
+                lstInputImages.Items.Add(new ListViewItem(file));
+            }
         }
-
-        private void btnMod_Click(object sender, EventArgs e)
+        private void modifyAllImages()
         {
             String currentDirectory = System.IO.Directory.GetCurrentDirectory();
             String outputDirectory = System.IO.Path.Combine(currentDirectory, "output");
@@ -63,6 +63,12 @@ namespace Pixel_Frequecny_Editor
                 
                 currentImage = images[0];
 
+                this.Invoke((MethodInvoker)delegate
+                {
+                    pb1.Maximum = currentImage.Width;
+                    pb1.Value = 0;
+                });
+
                 if (radHue.Checked == true)
                 {
                     output = modifyImage(currentImage, "H");
@@ -84,8 +90,16 @@ namespace Pixel_Frequecny_Editor
                 currentImage.Save(inputName);
                 i++;
                 images.RemoveAt(0);
-                lstOutput.Items.Add(new ListViewItem("output"));
+                this.Invoke((MethodInvoker)delegate
+                {
+                    lstOutput.Items.Add(inputName);
+                });
             }
+        }
+        private void btnMod_Click(object sender, EventArgs e)
+        {
+            Thread modThread = new Thread(modifyAllImages);
+            modThread.Start();
         }
         private Bitmap modifyImage(Bitmap inputImage, String typeOfModification)
         {
@@ -111,6 +125,10 @@ namespace Pixel_Frequecny_Editor
             }
             for (int x = 0; x < inputImage.Width - 1; x++)
             {
+                this.Invoke((MethodInvoker)delegate
+                {
+                    pb1.PerformStep();
+                });
                 for (int y = 0; y < inputImage.Height - 1; y++)
                 {
                     if (typeOfModification == "V")
@@ -160,7 +178,7 @@ namespace Pixel_Frequecny_Editor
         private double transformStandardDeviation(double input)
         {
             // Applies a transformation to the standard deviation, with te output 0<=x <= .
-            return Math.Abs(Math.Sin(input));
+            return Math.Abs(Math.Atan(input * input));
         }
         private double calcStandardDeviation(float[,] inputArray)
         {
@@ -851,12 +869,39 @@ namespace Pixel_Frequecny_Editor
         private void frmMain_Load(object sender, EventArgs e)
         {
             lstInputImages.View = View.List;
-            lstInputImages.View = View.List;
+            lstOutput.View = View.List;
+            folderBrowserDialog1.SelectedPath = System.IO.Directory.GetCurrentDirectory();
         }
 
         private void radioButton3_CheckedChanged(object sender, EventArgs e)
         {
 
+        }
+
+        private void btnOutput_Click(object sender, EventArgs e)
+        {
+            folderBrowserDialog1.ShowDialog();
+
+        }
+
+        private void btnFilter_Click(object sender, EventArgs e)
+        {
+
+        }
+        
+        private Color[,]
+        private Color[,] getColorArray(Bitmap image)
+        {
+            Color[,] output = new Color[image.Width, image.Height]; 
+
+            for (int x = 0; x < image.Width; x++)
+            {
+                for (int y = 0; y < image.Height; y++)
+                {
+                   output[x, y] = image.GetPixel(x, y);
+                }
+            }
+            return output;
         }
     }
 }
